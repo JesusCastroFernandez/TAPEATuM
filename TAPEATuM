@@ -1,0 +1,64 @@
+from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, Aer, execute
+import numpy as np
+
+def tsp_quantum_approximation(adjacency_matrix, num_iterations):
+    num_cities = len(adjacency_matrix)
+    num_qubits = num_cities ** 2
+
+    # Crear los registros cuánticos y clásicos
+    qr = QuantumRegister(num_qubits)
+    cr = ClassicalRegister(num_qubits)
+    qc = QuantumCircuit(qr, cr)
+
+    # Inicializar el estado cuántico
+    qc.h(qr)
+
+    # Aplicar el algoritmo de aproximación adiabática
+    for _ in range(num_iterations):
+        # Aplicar el operador de restricción
+        for i in range(num_cities):
+            for j in range(num_cities):
+                if i != j:
+                    qc.cx(qr[i * num_cities + j], qr[j * num_cities + i])
+
+        # Aplicar el operador de costo
+        for i in range(num_cities):
+            cost = adjacency_matrix[i][i]
+            for j in range(num_cities):
+                if i != j:
+                    cost += adjacency_matrix[i][j] * qr[i * num_cities + j]
+            qc.rz(cost, qr[i * num_cities + i])
+
+    qc.measure(qr, cr)
+
+    # Ejecutar el circuito cuántico en un simulador local
+    simulator = Aer.get_backend('qasm_simulator')
+    job = execute(qc, simulator, shots=1)
+    result = job.result()
+    counts = result.get_counts(qc)
+    bitstring = list(counts.keys())[0]
+
+    # Obtener el camino cuántico resultante
+    quantum_path = np.zeros(num_cities)
+    for i, bit in enumerate(bitstring):
+        if bit == '1':
+            quantum_path[i % num_cities] += 1
+
+    return quantum_path
+
+# Matriz de adyacencia del grafo completo de ciudades
+adjacency_matrix = [
+    [0, 2, 9, 10],
+    [1, 0, 6, 4],
+    [15, 7, 0, 8],
+    [6, 3, 12, 0]
+]
+
+# Número de iteraciones del algoritmo
+num_iterations = 1000
+
+# Obtener la ruta cuántica aproximada para el TSP
+quantum_path = tsp_quantum_approximation(adjacency_matrix, num_iterations)
+
+# Imprimir la ruta cuántica resultante
+print("Quantum path:", quantum_path)
